@@ -2,10 +2,10 @@
 
 @layer utilities {
   .calc-fn-btn {
-    @apply p-2 rounded-lg font-medium text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-center border border-slate-200/80;
+    @apply p-2 rounded-lg font-medium text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-center border border-slate-200/80 cursor-pointer;
   }
   .calc-num-btn {
-    @apply p-2.5 rounded-xl font-semibold text-sm bg-white hover:bg-slate-100 text-slate-800 transition-colors text-center border border-slate-200 shadow-xs;
+    @apply p-2.5 rounded-xl font-semibold text-sm bg-white hover:bg-slate-100 text-slate-800 transition-colors text-center border border-slate-200 shadow-xs cursor-pointer;
   }
 }
 
@@ -24,5 +24,3 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 1);
 }
-
-

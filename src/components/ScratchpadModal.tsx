@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit3, Type, Trash2, Undo, Download, Eraser } from 'lucide-react';

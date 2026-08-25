@@ -1,23 +1,23 @@
+'use client';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  Header,
-} from './components/Header';
-import { VideoProctor } from './components/VideoProctor';
-import { QuestionCard } from './components/QuestionCard';
-import { QuestionPalette } from './components/QuestionPalette';
-import { CalculatorModal } from './components/CalculatorModal';
-import { ScratchpadModal } from './components/ScratchpadModal';
-import { InstructionsModal } from './components/InstructionsModal';
-import { ShortcutsModal } from './components/ShortcutsModal';
-import { ViolationModal } from './components/ViolationModal';
-import { SubmitModal } from './components/SubmitModal';
-import { SubmissionSummary } from './components/SubmissionSummary';
+import { Header } from '@/components/Header';
+import { VideoProctor } from '@/components/VideoProctor';
+import { QuestionCard } from '@/components/QuestionCard';
+import { QuestionPalette } from '@/components/QuestionPalette';
+import { CalculatorModal } from '@/components/CalculatorModal';
+import { ScratchpadModal } from '@/components/ScratchpadModal';
+import { InstructionsModal } from '@/components/InstructionsModal';
+import { ShortcutsModal } from '@/components/ShortcutsModal';
+import { ViolationModal } from '@/components/ViolationModal';
+import { SubmitModal } from '@/components/SubmitModal';
+import { SubmissionSummary } from '@/components/SubmissionSummary';
 import {
   mockCandidate,
   mockSections,
   mockQuestions,
-} from './data/mockExam';
+} from '@/data/mockExam';
 import {
   CandidateInfo,
   ProctorState,
@@ -25,10 +25,10 @@ import {
   QuestionStatus,
   Section,
   UserAnswer,
-} from './types/exam';
-import { Shield, Lock, Bell, AlertTriangle } from 'lucide-react';
+} from '@/types/exam';
+import { Shield } from 'lucide-react';
 
-export default function App() {
+export function ExamPlatform() {
   const [candidate] = useState<CandidateInfo>(mockCandidate);
   const [sections] = useState<Section[]>(mockSections);
   const [questions] = useState<Record<string, Question>>(mockQuestions);
@@ -94,14 +94,14 @@ export default function App() {
     logs: [
       {
         id: 'log-init-1',
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: '10:00:00 AM',
         type: 'success',
         message: 'Identity Verified: Photo biometric facial match 99.4%',
         confidence: 0.99,
       },
       {
         id: 'log-init-2',
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: '10:00:02 AM',
         type: 'info',
         message: 'Continuous AI Proctoring session activated. Neural models running.',
         confidence: 0.98,
@@ -342,7 +342,7 @@ export default function App() {
     });
   };
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     const nextIdx = currentQuestionIndexInSection + 1;
     if (nextIdx < sectionQuestions.length) {
       handleSelectQuestion(sectionQuestions[nextIdx]);
@@ -356,9 +356,9 @@ export default function App() {
         setIsSubmitModalOpen(true);
       }
     }
-  };
+  }, [activeSectionId, currentQuestionIndexInSection, handleSelectQuestion, handleSelectSection, sectionQuestions, sections]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     const prevIdx = currentQuestionIndexInSection - 1;
     if (prevIdx >= 0) {
       handleSelectQuestion(sectionQuestions[prevIdx]);
@@ -372,9 +372,9 @@ export default function App() {
         handleSelectQuestion(lastQ);
       }
     }
-  };
+  }, [activeSectionId, currentQuestionIndexInSection, handleSelectQuestion, sectionQuestions, sections]);
 
-  const handleMarkForReviewAndNext = () => {
+  const handleMarkForReviewAndNext = useCallback(() => {
     setUserAnswers((prev) => {
       const cur = prev[activeQuestionId];
       const hasAnswer =
@@ -391,7 +391,7 @@ export default function App() {
       };
     });
     handleNext();
-  };
+  }, [activeQuestionId, handleNext]);
 
   // Keyboard navigation shortcuts
   useEffect(() => {
