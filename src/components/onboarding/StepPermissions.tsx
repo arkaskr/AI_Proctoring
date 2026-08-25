@@ -14,7 +14,6 @@ import {
   Shield,
   Volume2,
   Wifi,
-  Sparkles,
 } from 'lucide-react';
 
 interface StepPermissionsProps {
@@ -133,7 +132,7 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
                 className="w-full h-full object-cover -scale-x-100"
               />
             ) : (
-              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-radial from-slate-800 to-slate-950 text-white">
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-900 text-white">
                 <div className="w-24 h-24 rounded-full bg-indigo-500/20 border-2 border-indigo-400/50 flex items-center justify-center mb-4 animate-pulse">
                   <Camera className="w-10 h-10 text-indigo-400" />
                 </div>
@@ -159,7 +158,7 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
                 <span className="text-[11px] text-slate-300 font-medium shrink-0">Mic Level:</span>
                 <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 transition-all duration-100 rounded-full"
+                    className="h-full bg-emerald-500 transition-all duration-100 rounded-full"
                     style={{ width: `${micLevel}%` }}
                   ></div>
                 </div>
@@ -180,7 +179,7 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
         <div className="md:col-span-5 flex flex-col gap-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col gap-4">
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <Shield className="w-4 h-4 text-slate-500" />
               Hardware Status Checklist
             </h3>
 

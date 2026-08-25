@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   Search,
   Lock,
-  Sparkles,
 } from 'lucide-react';
 
 interface StepSystemScanProps {
@@ -137,7 +136,7 @@ export const StepSystemScan: React.FC<StepSystemScanProps> = ({ onNext, onBack }
 
           <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-150 rounded-full"
+              className="h-full bg-emerald-500 transition-all duration-150 rounded-full"
               style={{ width: `${scanProgress}%` }}
             ></div>
           </div>

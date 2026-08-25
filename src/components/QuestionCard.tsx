@@ -16,7 +16,6 @@ import {
   Check,
   ZoomIn,
   ZoomOut,
-  Sparkles,
   Info,
 } from 'lucide-react';
 import { Question, QuestionOption, Section, UserAnswer } from '@/types/exam';
@@ -377,7 +376,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       </div>
 
       {/* Bento Navigation & Action Bottom Bar */}
-      <div className="p-4 sm:p-5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+      <div className="p-4 sm:p-5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
         {/* Left: Previous & Clear Response */}
         <div className="flex items-center gap-2">
           <button

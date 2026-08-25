@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   Video,
   VideoOff,
@@ -16,7 +16,6 @@ import {
   Minimize2,
   RefreshCw,
   Zap,
-  Sparkles,
   ChevronDown,
   ChevronUp,
   Volume2,
@@ -240,7 +239,7 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
             </span>
           </div>
           <span className="font-bold text-xs text-white tracking-wider uppercase flex items-center gap-1.5">
-            AI Vision Proctor Feed
+            Vision Proctor Feed
           </span>
         </div>
 
@@ -280,7 +279,7 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
               className="w-full h-full object-cover -scale-x-100"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950 relative overflow-hidden">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 relative overflow-hidden">
               {/* Synthetic student silhouette animation */}
               <div className="relative flex flex-col items-center justify-center">
                 <div className="w-24 h-24 rounded-full bg-slate-800/80 border border-slate-700/80 flex items-center justify-center shadow-inner relative">
@@ -318,23 +317,14 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
             </div>
           )}
 
-          {/* AI Scanning Beam Line */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <motion.div
-              animate={{ y: ['0%', '100%', '0%'] }}
-              transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
-              className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_12px_#6366f1] opacity-70"
-            />
-          </div>
-
-          {/* Bento HUD Badges Overlay */}
+          {/* Status badges */}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 pointer-events-none">
             <span className="px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-bold uppercase tracking-widest flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
               LIVE FEED
             </span>
-            <span className="px-2 py-0.5 bg-indigo-600 text-[9px] text-white font-bold rounded uppercase">
-              AI ANALYZING
+            <span className="px-2 py-0.5 bg-slate-700 text-[9px] text-white font-bold rounded uppercase">
+              MONITORING
             </span>
           </div>
 

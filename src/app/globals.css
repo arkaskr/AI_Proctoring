@@ -1,4 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+* {
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+body {
+  background: #f5f6f8;
+}
 
 @layer utilities {
   .calc-fn-btn {
@@ -9,7 +18,6 @@
   }
 }
 
-/* Custom slick Bento scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -19,7 +27,26 @@
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(203, 213, 225, 0.9);
-  border-radius: 9999px;
+  border-radius: 2px;
+}
+
+.shadow-xs,
+.shadow-2xs,
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-inner {
+  box-shadow: none !important;
+}
+
+.rounded-full,
+.rounded-xl,
+.rounded-2xl,
+.rounded-lg,
+.rounded-md,
+.rounded-sm {
+  border-radius: 4px !important;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 1);

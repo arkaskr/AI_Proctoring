@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Sparkles,
   Camera,
   Target,
   UserCheck,
@@ -95,7 +94,7 @@ export const StepCalibration: React.FC<StepCalibrationProps> = ({ onNext, onBack
               {/* Face Guide Oval */}
               <div
                 className={`w-48 h-64 rounded-[50%] border-2 transition-all duration-300 flex items-center justify-center ${
-                  faceCentered ? 'border-emerald-400/80 shadow-[0_0_20px_rgba(52,211,153,0.3)]' : 'border-amber-400'
+                  faceCentered ? 'border-emerald-400/80' : 'border-amber-400'
                 }`}
               >
                 <div className="text-center bg-slate-900/60 backdrop-blur-xs px-3 py-1 rounded-lg text-[11px] font-semibold text-white">
@@ -168,7 +167,7 @@ export const StepCalibration: React.FC<StepCalibrationProps> = ({ onNext, onBack
         <div className="md:col-span-5 flex flex-col gap-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col gap-3.5">
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <Shield className="w-4 h-4 text-slate-500" />
               Sensor Calibration Scores
             </h3>
 

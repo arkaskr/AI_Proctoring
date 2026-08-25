@@ -11,7 +11,6 @@ import {
   Lock,
   Maximize2,
   ArrowLeft,
-  Sparkles,
   BookOpen,
   FileCheck,
 } from 'lucide-react';
@@ -60,7 +59,7 @@ export const StepInstructions: React.FC<StepInstructionsProps> = ({
 
       <div className="max-w-3xl w-full mx-auto flex flex-col gap-5">
         {/* Candidate & Exam Summary Card */}
-        <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 sm:p-6 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-bold text-lg text-indigo-300">
               JD
@@ -168,7 +167,7 @@ export const StepInstructions: React.FC<StepInstructionsProps> = ({
             disabled={!agreed}
             className={`flex-1 sm:flex-initial py-3.5 px-8 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2.5 shadow-lg cursor-pointer ${
               agreed
-                ? 'bg-gradient-to-r from-indigo-600 via-indigo-700 to-slate-900 hover:from-indigo-500 hover:to-slate-800 text-white shadow-indigo-300 active:scale-[0.99]'
+                ? 'bg-slate-900 hover:bg-slate-800 text-white active:scale-[0.99]'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
             }`}
           >
