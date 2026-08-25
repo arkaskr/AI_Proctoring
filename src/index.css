@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .calc-fn-btn {
+    @apply p-2 rounded-lg font-medium text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-center border border-slate-200/80;
+  }
+  .calc-num-btn {
+    @apply p-2.5 rounded-xl font-semibold text-sm bg-white hover:bg-slate-100 text-slate-800 transition-colors text-center border border-slate-200 shadow-xs;
+  }
+}
+
+/* Custom slick Bento scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.9);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 1);
+}
+
+
