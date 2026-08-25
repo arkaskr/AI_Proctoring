@@ -4,19 +4,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Clock,
   ShieldCheck,
-  Maximize2,
-  Minimize2,
-  Calculator as CalcIcon,
-  Edit3,
-  Keyboard,
-  HelpCircle,
-  AlertTriangle,
   Wifi,
-  Sparkles,
-  ChevronRight,
   LogOut,
 } from 'lucide-react';
-import { CandidateInfo, Section } from '../types/exam';
+import { CandidateInfo, Section } from '@/types/exam';
 
 interface HeaderProps {
   candidate: CandidateInfo;
@@ -25,10 +16,6 @@ interface HeaderProps {
   onSelectSection: (sectionId: string) => void;
   remainingSeconds: number;
   totalSeconds: number;
-  onOpenCalculator: () => void;
-  onOpenScratchpad: () => void;
-  onOpenShortcuts: () => void;
-  onOpenInstructions: () => void;
   onSubmitClick: () => void;
   integrityScore: number;
   isAiScanning: boolean;
@@ -40,16 +27,10 @@ export const Header: React.FC<HeaderProps> = ({
   activeSectionId,
   onSelectSection,
   remainingSeconds,
-  totalSeconds,
-  onOpenCalculator,
-  onOpenScratchpad,
-  onOpenShortcuts,
-  onOpenInstructions,
   onSubmitClick,
   integrityScore,
   isAiScanning,
 }) => {
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [networkPing, setNetworkPing] = useState<number>(24);
 
   // Format time as HH:MM:SS
@@ -63,27 +44,6 @@ export const Header: React.FC<HeaderProps> = ({
   const isLowTime = remainingSeconds <= 600; // <= 10 mins
   const isCriticalTime = remainingSeconds <= 180; // <= 3 mins
 
-  // Toggle fullscreen mode
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      }
-      setIsFullscreen(false);
-    }
-  };
-
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
-
   // Fluctuate ping realistically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -91,9 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
     }, 4000);
     return () => clearInterval(interval);
   }, []);
-
-  const currentSectionIndex = sections.findIndex((s) => s.id === activeSectionId);
-  const currentSection = sections[currentSectionIndex] || sections[0];
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 text-slate-800 shadow-xs">
@@ -135,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
                 key={sec.id}
                 type="button"
                 onClick={() => onSelectSection(sec.id)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   sec.id === activeSectionId
                     ? 'bg-indigo-50 border border-indigo-200 text-indigo-700'
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent'
@@ -188,7 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Candidate ID Badge & Quick Tools */}
+        {/* Right: Candidate ID Badge & Submit Test CTA */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Candidate ID & Avatar */}
           <div className="hidden md:flex items-center gap-2.5 pl-2">
@@ -203,57 +160,11 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="h-6 w-[1px] bg-slate-200 hidden md:block"></div>
 
-          {/* Tool Buttons */}
-          <button
-            type="button"
-            onClick={onOpenCalculator}
-            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors border border-slate-200 shadow-2xs"
-            title="Scientific Calculator (Alt + C)"
-          >
-            <CalcIcon className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenScratchpad}
-            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors border border-slate-200 shadow-2xs"
-            title="Scratchpad / Whiteboard (Alt + S)"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenShortcuts}
-            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors border border-slate-200 shadow-2xs hidden sm:inline-flex"
-            title="Keyboard Shortcuts"
-          >
-            <Keyboard className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenInstructions}
-            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors border border-slate-200 shadow-2xs"
-            title="Exam Instructions (Alt + I)"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors border border-slate-200 shadow-2xs hidden sm:inline-flex"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-
           {/* Submit Test CTA */}
           <button
             type="button"
             onClick={onSubmitClick}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Submit Test</span>

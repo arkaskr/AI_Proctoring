@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, CheckCircle2, AlertCircle, Bookmark, HelpCircle, Send } from 'lucide-react';
-import { Question, Section, UserAnswer } from '../types/exam';
+import { Question, Section, UserAnswer } from '@/types/exam';
 
 interface SubmitModalProps {
   isOpen: boolean;
@@ -113,7 +113,7 @@ export const SubmitModal: React.FC<SubmitModalProps> = ({
                       let secMarked = 0;
                       let secUnanswered = 0;
 
-                      sec.questionIds.forEach((qid) => {
+                      sec.questionIds.forEach((qid: string) => {
                         const ans = userAnswers[qid];
                         if (ans?.status === 'answered' || ans?.status === 'answered_marked_review') secAnswered++;
                         if (ans?.status === 'marked_review' || ans?.status === 'answered_marked_review') secMarked++;

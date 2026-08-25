@@ -19,7 +19,7 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
-import { Question, QuestionOption, Section, UserAnswer } from '../types/exam';
+import { Question, QuestionOption, Section, UserAnswer } from '@/types/exam';
 
 interface QuestionCardProps {
   question: Question;
@@ -224,7 +224,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <div className="space-y-3">
               <div className="text-xs text-slate-400 font-semibold tracking-wide uppercase">Select one response:</div>
               <div className="space-y-3">
-                {question.options.map((option) => {
+                {question.options.map((option: QuestionOption) => {
                   const isSelected = selectedOptions.includes(option.id);
                   return (
                     <button
@@ -266,7 +266,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 <span>Select all applicable options:</span>
               </div>
               <div className="space-y-3">
-                {question.options.map((option) => {
+                {question.options.map((option: QuestionOption) => {
                   const isSelected = selectedOptions.includes(option.id);
                   return (
                     <button

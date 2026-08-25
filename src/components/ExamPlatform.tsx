@@ -6,13 +6,10 @@ import { Header } from '@/components/Header';
 import { VideoProctor } from '@/components/VideoProctor';
 import { QuestionCard } from '@/components/QuestionCard';
 import { QuestionPalette } from '@/components/QuestionPalette';
-import { CalculatorModal } from '@/components/CalculatorModal';
-import { ScratchpadModal } from '@/components/ScratchpadModal';
-import { InstructionsModal } from '@/components/InstructionsModal';
-import { ShortcutsModal } from '@/components/ShortcutsModal';
 import { ViolationModal } from '@/components/ViolationModal';
 import { SubmitModal } from '@/components/SubmitModal';
 import { SubmissionSummary } from '@/components/SubmissionSummary';
+import { ExamOnboardingFlow } from '@/components/onboarding/ExamOnboardingFlow';
 import {
   mockCandidate,
   mockSections,
@@ -29,6 +26,9 @@ import {
 import { Shield } from 'lucide-react';
 
 export function ExamPlatform() {
+  // Stage flow: 'onboarding' -> 'exam' -> 'submitted'
+  const [stage, setStage] = useState<'onboarding' | 'exam' | 'submitted'>('onboarding');
+
   const [candidate] = useState<CandidateInfo>(mockCandidate);
   const [sections] = useState<Section[]>(mockSections);
   const [questions] = useState<Record<string, Question>>(mockQuestions);
@@ -41,12 +41,7 @@ export function ExamPlatform() {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(5400);
 
   // Modals state
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState<boolean>(false);
-  const [isScratchpadOpen, setIsScratchpadOpen] = useState<boolean>(false);
-  const [isInstructionsOpen, setIsInstructionsOpen] = useState<boolean>(false);
-  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   // Security violation modal
   const [violationState, setViolationState] = useState<{
@@ -109,25 +104,25 @@ export function ExamPlatform() {
     ],
   });
 
-  // Countdown timer effect
+  // Countdown timer effect (only runs during 'exam' stage)
   useEffect(() => {
-    if (isSubmitted) return;
+    if (stage !== 'exam') return;
     const timer = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          setIsSubmitted(true);
+          setStage('submitted');
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isSubmitted]);
+  }, [stage]);
 
   // Tab switch & focus lost listener (AI Proctoring Security Interceptor)
   useEffect(() => {
-    if (isSubmitted) return;
+    if (stage !== 'exam') return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -161,16 +156,55 @@ export function ExamPlatform() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isSubmitted]);
+  }, [stage]);
 
-  // Prevent right clicks & clipboard copy inside exam (Security simulation)
+  // Fullscreen exit detection listener
   useEffect(() => {
+    if (stage !== 'exam') return;
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setProctorState((prev) => {
+          const newViolations = prev.fullscreenViolations + 1;
+          const newScore = Math.max(50, prev.integrityScore - 4);
+          return {
+            ...prev,
+            fullscreenViolations: newViolations,
+            integrityScore: newScore,
+            logs: [
+              {
+                id: `log-fs-${Date.now()}`,
+                timestamp: new Date().toLocaleTimeString(),
+                type: 'critical',
+                message: `Security Warning: Fullscreen mode exited (Incident #${newViolations})`,
+                confidence: 0.99,
+              },
+              ...prev.logs.slice(0, 15),
+            ],
+          };
+        });
+
+        setViolationState({
+          isOpen: true,
+          type: 'fullscreen_exit',
+          message: 'Fullscreen mode was exited. Fullscreen assessment mode is strictly mandatory for the entire examination duration.',
+        });
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [stage]);
+
+  // Prevent right clicks inside exam
+  useEffect(() => {
+    if (stage !== 'exam') return;
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
     window.addEventListener('contextmenu', handleContextMenu);
     return () => window.removeEventListener('contextmenu', handleContextMenu);
-  }, []);
+  }, [stage]);
 
   // Set active question & mark as visited
   const handleSelectQuestion = useCallback((qid: string) => {
@@ -182,7 +216,7 @@ export function ExamPlatform() {
 
     setUserAnswers((prev) => {
       const current = prev[qid];
-      if (current.status === 'not_visited') {
+      if (current && current.status === 'not_visited') {
         return {
           ...prev,
           [qid]: {
@@ -257,7 +291,14 @@ export function ExamPlatform() {
 
   const handleSaveCodeAnswer = (code: string) => {
     setUserAnswers((prev) => {
-      const cur = prev[activeQuestionId];
+      const cur = prev[activeQuestionId] || {
+        questionId: activeQuestionId,
+        selectedOptionIds: [],
+        status: 'not_answered',
+        isBookmarked: false,
+        timeSpentSeconds: 0,
+        visited: true,
+      };
       const hasAnswer = code.trim().length > 0;
       const newStatus = hasAnswer
         ? cur.isBookmarked
@@ -280,7 +321,14 @@ export function ExamPlatform() {
 
   const handleSaveTextAnswer = (text: string) => {
     setUserAnswers((prev) => {
-      const cur = prev[activeQuestionId];
+      const cur = prev[activeQuestionId] || {
+        questionId: activeQuestionId,
+        selectedOptionIds: [],
+        status: 'not_answered',
+        isBookmarked: false,
+        timeSpentSeconds: 0,
+        visited: true,
+      };
       const hasAnswer = text.trim().length > 0;
       const newStatus = hasAnswer
         ? cur.isBookmarked
@@ -304,6 +352,7 @@ export function ExamPlatform() {
   const handleClearResponse = () => {
     setUserAnswers((prev) => {
       const cur = prev[activeQuestionId];
+      if (!cur) return prev;
       return {
         ...prev,
         [activeQuestionId]: {
@@ -319,6 +368,7 @@ export function ExamPlatform() {
   const handleToggleBookmark = () => {
     setUserAnswers((prev) => {
       const cur = prev[activeQuestionId];
+      if (!cur) return prev;
       const nextBookmarked = !cur.isBookmarked;
       const hasAnswer =
         (cur.selectedOptionIds && cur.selectedOptionIds.length > 0) ||
@@ -377,6 +427,7 @@ export function ExamPlatform() {
   const handleMarkForReviewAndNext = useCallback(() => {
     setUserAnswers((prev) => {
       const cur = prev[activeQuestionId];
+      if (!cur) return prev;
       const hasAnswer =
         (cur.selectedOptionIds && cur.selectedOptionIds.length > 0) ||
         (cur.textAnswer && cur.textAnswer.trim().length > 0);
@@ -393,62 +444,8 @@ export function ExamPlatform() {
     handleNext();
   }, [activeQuestionId, handleNext]);
 
-  // Keyboard navigation shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Avoid capturing when typing inside textareas or inputs
-      if (
-        document.activeElement?.tagName === 'TEXTAREA' ||
-        document.activeElement?.tagName === 'INPUT'
-      ) {
-        return;
-      }
-
-      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
-        e.preventDefault();
-        setIsCalculatorOpen((p) => !p);
-      } else if (e.altKey && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault();
-        setIsScratchpadOpen((p) => !p);
-      } else if (e.altKey && (e.key === 'i' || e.key === 'I')) {
-        e.preventDefault();
-        setIsInstructionsOpen((p) => !p);
-      } else if (e.key === 'n' || e.key === 'N' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleNext();
-      } else if (e.key === 'p' || e.key === 'P' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handlePrevious();
-      } else if (e.key === 'm' || e.key === 'M') {
-        e.preventDefault();
-        handleMarkForReviewAndNext();
-      } else if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
-        handleClearResponse();
-      } else if (e.key === 'b' || e.key === 'B') {
-        e.preventDefault();
-        handleToggleBookmark();
-      } else if (['1', '2', '3', '4', 'a', 'b', 'c', 'd', 'A', 'B', 'C', 'D'].includes(e.key)) {
-        if (currentQuestion.type === 'single_choice' && currentQuestion.options) {
-          let optIndex = -1;
-          if (['1', 'a', 'A'].includes(e.key)) optIndex = 0;
-          if (['2', 'b', 'B'].includes(e.key)) optIndex = 1;
-          if (['3', 'c', 'C'].includes(e.key)) optIndex = 2;
-          if (['4', 'd', 'D'].includes(e.key)) optIndex = 3;
-
-          if (optIndex >= 0 && currentQuestion.options[optIndex]) {
-            handleSaveOption(currentQuestion.options[optIndex].id, false);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeQuestionId, currentQuestion, handleNext, handlePrevious, handleMarkForReviewAndNext]);
-
   const handleRestartExam = () => {
-    setIsSubmitted(false);
+    setStage('onboarding');
     setRemainingSeconds(5400);
     setActiveSectionId('sec-1');
     setActiveQuestionId('q1');
@@ -469,6 +466,7 @@ export function ExamPlatform() {
     setProctorState((prev) => ({
       ...prev,
       tabSwitchCount: 0,
+      fullscreenViolations: 0,
       integrityScore: 98,
       isSuspicious: false,
       logs: [
@@ -476,14 +474,25 @@ export function ExamPlatform() {
           id: `log-${Date.now()}`,
           timestamp: new Date().toLocaleTimeString(),
           type: 'info',
-          message: 'Exam session reset for demonstration',
+          message: 'Exam session reset for new onboarding demonstration',
           confidence: 0.99,
         },
       ],
     }));
   };
 
-  if (isSubmitted) {
+  // 1. Stage: Onboarding Flow (Permissions -> System Scan -> Calibration -> Instructions + Auto Fullscreen)
+  if (stage === 'onboarding') {
+    return (
+      <ExamOnboardingFlow
+        candidate={candidate}
+        onStartExam={() => setStage('exam')}
+      />
+    );
+  }
+
+  // 2. Stage: Submitted Summary
+  if (stage === 'submitted') {
     return (
       <SubmissionSummary
         candidate={candidate}
@@ -496,9 +505,10 @@ export function ExamPlatform() {
     );
   }
 
+  // 3. Stage: Live Exam Arena
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans select-none">
-      {/* Top Fixed Bar */}
+      {/* Top Fixed Bar without calculator, whiteboard, shortcuts, instructions, or manual fullscreen */}
       <Header
         candidate={candidate}
         sections={sections}
@@ -506,10 +516,6 @@ export function ExamPlatform() {
         onSelectSection={handleSelectSection}
         remainingSeconds={remainingSeconds}
         totalSeconds={5400}
-        onOpenCalculator={() => setIsCalculatorOpen(true)}
-        onOpenScratchpad={() => setIsScratchpadOpen(true)}
-        onOpenShortcuts={() => setIsShortcutsOpen(true)}
-        onOpenInstructions={() => setIsInstructionsOpen(true)}
         onSubmitClick={() => setIsSubmitModalOpen(true)}
         integrityScore={proctorState.integrityScore}
         isAiScanning={proctorState.isAiScanning}
@@ -590,26 +596,6 @@ export function ExamPlatform() {
       </footer>
 
       {/* Modals & Dialogs */}
-      <CalculatorModal
-        isOpen={isCalculatorOpen}
-        onClose={() => setIsCalculatorOpen(false)}
-      />
-
-      <ScratchpadModal
-        isOpen={isScratchpadOpen}
-        onClose={() => setIsScratchpadOpen(false)}
-      />
-
-      <InstructionsModal
-        isOpen={isInstructionsOpen}
-        onClose={() => setIsInstructionsOpen(false)}
-      />
-
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
-
       <SubmitModal
         isOpen={isSubmitModalOpen}
         sections={sections}
@@ -618,7 +604,7 @@ export function ExamPlatform() {
         onClose={() => setIsSubmitModalOpen(false)}
         onConfirmSubmit={() => {
           setIsSubmitModalOpen(false);
-          setIsSubmitted(true);
+          setStage('submitted');
         }}
       />
 
@@ -626,9 +612,14 @@ export function ExamPlatform() {
         isOpen={violationState.isOpen}
         type={violationState.type}
         message={violationState.message}
-        violationCount={proctorState.tabSwitchCount}
+        violationCount={proctorState.tabSwitchCount + proctorState.fullscreenViolations}
         maxViolations={3}
-        onAcknowledge={() => setViolationState((p) => ({ ...p, isOpen: false }))}
+        onAcknowledge={() => {
+          setViolationState((p) => ({ ...p, isOpen: false }));
+          if (violationState.type === 'fullscreen_exit') {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+          }
+        }}
       />
     </div>
   );

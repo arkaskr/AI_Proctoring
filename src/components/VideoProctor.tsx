@@ -22,7 +22,7 @@ import {
   Volume2,
   Radio,
 } from 'lucide-react';
-import { ProctorLogEntry, ProctorState } from '../types/exam';
+import { ProctorLogEntry, ProctorState } from '@/types/exam';
 
 interface VideoProctorProps {
   proctorState: ProctorState;
@@ -508,7 +508,7 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
             {proctorState.logs.length === 0 ? (
               <div className="text-slate-500 italic text-center py-2">No security events logged</div>
             ) : (
-              proctorState.logs.map((log) => (
+              proctorState.logs.map((log: ProctorLogEntry) => (
                 <div
                   key={log.id}
                   className={`p-1.5 rounded-md border flex items-start gap-1.5 ${

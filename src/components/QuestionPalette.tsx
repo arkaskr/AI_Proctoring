@@ -15,7 +15,7 @@ import {
   Eye,
   Hash,
 } from 'lucide-react';
-import { CandidateInfo, ProctorState, Question, QuestionStatus, Section, UserAnswer } from '../types/exam';
+import { CandidateInfo, ProctorState, Question, QuestionStatus, Section, UserAnswer } from '@/types/exam';
 
 interface QuestionPaletteProps {
   candidate: CandidateInfo;
@@ -45,7 +45,7 @@ export const QuestionPalette: React.FC<QuestionPaletteProps> = ({
   const [filter, setFilter] = useState<'all' | 'answered' | 'unanswered' | 'marked'>('all');
 
   const activeSection = sections.find((s) => s.id === activeSectionId) || sections[0];
-  const sectionQuestions = activeSection.questionIds.map((qid) => questions[qid]).filter(Boolean);
+  const sectionQuestions = activeSection.questionIds.map((qid: string) => questions[qid]).filter(Boolean) as Question[];
 
   // Status counter computation
   let answeredCount = 0;
@@ -53,7 +53,7 @@ export const QuestionPalette: React.FC<QuestionPaletteProps> = ({
   let notAnsweredCount = 0;
   let notVisitedCount = 0;
 
-  sectionQuestions.forEach((q) => {
+  sectionQuestions.forEach((q: Question) => {
     const status = userAnswers[q.id]?.status || 'not_visited';
     if (status === 'answered' || status === 'answered_marked_review') answeredCount++;
     if (status === 'marked_review' || status === 'answered_marked_review') markedCount++;
@@ -95,7 +95,7 @@ export const QuestionPalette: React.FC<QuestionPaletteProps> = ({
     );
   };
 
-  const filteredQuestions = sectionQuestions.filter((q) => {
+  const filteredQuestions = sectionQuestions.filter((q: Question) => {
     const status = userAnswers[q.id]?.status || 'not_visited';
     if (filter === 'answered') return status === 'answered' || status === 'answered_marked_review';
     if (filter === 'marked') return status === 'marked_review' || status === 'answered_marked_review';
@@ -133,9 +133,9 @@ export const QuestionPalette: React.FC<QuestionPaletteProps> = ({
         <div className="flex flex-col gap-1.5">
           {sections.map((sec, idx) => {
             const isSelected = sec.id === activeSectionId;
-            const secQuestions = sec.questionIds.map((qid) => questions[qid]);
+            const secQuestions = sec.questionIds.map((qid: string) => questions[qid]).filter(Boolean) as Question[];
             const answeredInSec = secQuestions.filter(
-              (q) => userAnswers[q.id]?.status === 'answered' || userAnswers[q.id]?.status === 'answered_marked_review'
+              (q: Question) => userAnswers[q.id]?.status === 'answered' || userAnswers[q.id]?.status === 'answered_marked_review'
             ).length;
 
             return (

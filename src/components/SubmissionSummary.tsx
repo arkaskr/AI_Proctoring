@@ -20,7 +20,7 @@ import {
   ChevronRight,
   TrendingUp,
 } from 'lucide-react';
-import { CandidateInfo, ProctorState, Question, Section, UserAnswer } from '../types/exam';
+import { CandidateInfo, ProctorLogEntry, ProctorState, Question, Section, UserAnswer } from '@/types/exam';
 
 interface SubmissionSummaryProps {
   candidate: CandidateInfo;
@@ -137,7 +137,7 @@ AI PROCTORING INTEGRITY AUDIT:
 - Tab Switch Violations: ${proctorState.tabSwitchCount}
 - Continuous Face Presence: 99.4%
 - Gaze Alignment Index: 96.8%
-- Background Noise Incidents: ${proctorState.logs.filter((l) => l.type === 'warning').length}
+- Background Noise Incidents: ${proctorState.logs.filter((l: ProctorLogEntry) => l.type === 'warning').length}
 =====================================================
 This receipt is cryptographically sealed for institutional audit.
 `;
@@ -241,9 +241,9 @@ This receipt is cryptographically sealed for institutional audit.
               <div className="mt-5 space-y-2.5">
                 <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">Section Performance</div>
                 {sections.map((sec) => {
-                  const secQuestions = sec.questionIds.map((qid) => questions[qid]);
+                  const secQuestions = sec.questionIds.map((qid: string) => questions[qid]).filter(Boolean) as Question[];
                   const secAnswered = secQuestions.filter(
-                    (q) => userAnswers[q.id]?.status === 'answered' || userAnswers[q.id]?.status === 'answered_marked_review'
+                    (q: Question) => userAnswers[q.id]?.status === 'answered' || userAnswers[q.id]?.status === 'answered_marked_review'
                   ).length;
                   return (
                     <div key={sec.id} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-200">
