@@ -45,7 +45,7 @@ export const CalculatorModal: React.FC<CalculatorModalProps> = ({ isOpen, onClos
   const handleCalculate = () => {
     try {
       // Safe mathematical evaluation
-      let expr = display
+      const expr = display
         .replace(/π/g, `${Math.PI}`)
         .replace(/e/g, `${Math.E}`)
         .replace(/\^/g, '**')

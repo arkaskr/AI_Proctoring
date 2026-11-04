@@ -37,14 +37,16 @@ interface VideoProctorProps {
   onUpdateProctorState: (updater: (prev: ProctorState) => ProctorState) => void;
   onTriggerViolation: (type: 'multiple_face' | 'face_missing' | 'custom', message: string) => void;
   sessionId: string;
+  initialStream?: MediaStream | null;
 }
 
 export const VideoProctor: React.FC<VideoProctorProps> = ({
   proctorState,
   onUpdateProctorState,
   onTriggerViolation,
+  initialStream,
 }) => {
-  const videoRef    = useRef<HTMLVideoElement | null>(null);
+  const videoRef          = useRef<HTMLVideoElement | null>(null);
   // Hidden small canvas for pixel analysis
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
   // Visible overlay canvas drawn on top of the video
@@ -122,8 +124,12 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
   // ── Web Audio: mic volume ──────────────────────────────────────────────────
   const startAudioAnalysis = useCallback((stream: MediaStream) => {
     try {
+      if (stream.getAudioTracks().length === 0) return;
       const ctx = new (window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const source  = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
@@ -134,6 +140,34 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
       audioDataRef.current = new Uint8Array(analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     } catch (err) {
       console.warn('[AudioAnalyzer] init failed:', err);
+    }
+  }, []);
+
+  // ── Video element attachment helpers ──────────────────────────────────────
+  const bindStreamToVideo = useCallback((stream: MediaStream) => {
+    streamRef.current = stream;
+    const video = videoRef.current;
+    if (video) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+      video.muted = true;
+      video.play().catch((err) => {
+        console.warn('[VideoProctor] video play failed:', err);
+      });
+    }
+  }, []);
+
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      if (node.srcObject !== streamRef.current) {
+        node.srcObject = streamRef.current;
+      }
+      node.muted = true;
+      node.play().catch((err) => {
+        console.warn('[VideoProctor] video play failed on ref attach:', err);
+      });
     }
   }, []);
 
@@ -150,9 +184,9 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
   const captureFrame = useCallback((): ImageData | null => {
     const video  = videoRef.current;
     const canvas = analysisCanvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return null;
-    canvas.width  = AW;
-    canvas.height = AH;
+    if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) return null;
+    if (canvas.width !== AW) canvas.width = AW;
+    if (canvas.height !== AH) canvas.height = AH;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0, AW, AH);
@@ -356,8 +390,12 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
     const canvas = overlayCanvasRef.current;
     const video  = videoRef.current;
     if (!canvas || !video) return;
-    canvas.width  = video.clientWidth  || canvas.offsetWidth  || 320;
-    canvas.height = video.clientHeight || canvas.offsetHeight || 240;
+
+    const targetW = video.clientWidth  || canvas.offsetWidth  || 320;
+    const targetH = video.clientHeight || canvas.offsetHeight || 240;
+    if (canvas.width !== targetW) canvas.width = targetW;
+    if (canvas.height !== targetH) canvas.height = targetH;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -367,9 +405,11 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
     const W = canvas.width, H = canvas.height;
     const { faceBox, leftEye, rightEye, mouth } = lm;
 
-    // ── Face bounding box ──────────────────────────────────────────────────
-    const bx = faceBox.x * W, by = faceBox.y * H;
-    const bw = faceBox.w * W, bh = faceBox.h * H;
+    // ── Face bounding box (mirrored x for -scaleX video display) ──────────────
+    const bx = (1 - faceBox.x - faceBox.w) * W;
+    const by = faceBox.y * H;
+    const bw = faceBox.w * W;
+    const bh = faceBox.h * H;
 
     const boxColor = faceCount > 1 ? '#f87171' : isWarning ? '#fbbf24' : '#818cf8';
     ctx.strokeStyle = boxColor;
@@ -387,7 +427,7 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
       ctx.stroke();
     });
 
-    // ── FACE_ID label ─────────────────────────────────────────────────────
+    // ── FACE_ID label (unmirrored readable text) ───────────────────────────
     ctx.fillStyle = 'rgba(2,6,23,0.85)';
     ctx.fillRect(bx, by - 18, 115, 16);
     ctx.font      = 'bold 10px monospace';
@@ -396,11 +436,15 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
     ctx.fillStyle = faceCount > 1 ? '#f87171' : '#34d399';
     ctx.fillText(faceCount > 1 ? 'MULTI!' : '99.4%', bx + 76, by - 5);
 
-    // ── Eyes ─────────────────────────────────────────────────────────────
+    // ── Eyes (mirrored) ───────────────────────────────────────────────────
     if (leftEye && rightEye) {
       const eyeRadius = Math.max(4, bw * 0.07);
-      [leftEye, rightEye].forEach(eye => {
-        const ex = eye.x * W, ey = eye.y * H;
+      const eyes = [
+        { x: (1 - leftEye.x) * W, y: leftEye.y * H },
+        { x: (1 - rightEye.x) * W, y: rightEye.y * H },
+      ];
+      eyes.forEach(eye => {
+        const ex = eye.x, ey = eye.y;
         // Outer ring
         ctx.beginPath();
         ctx.arc(ex, ey, eyeRadius, 0, Math.PI * 2);
@@ -414,14 +458,14 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
         ctx.fill();
         // Pupil
         ctx.beginPath();
-        ctx.arc(ex + lm.gazeX * 2 - 1, ey + lm.gazeY * 2 - 1, eyeRadius * 0.2, 0, Math.PI * 2);
+        ctx.arc(ex + (1 - lm.gazeX) * 2 - 1, ey + lm.gazeY * 2 - 1, eyeRadius * 0.2, 0, Math.PI * 2);
         ctx.fillStyle = '#0f172a';
         ctx.fill();
       });
 
       // Nose bridge line
       const noseY = (leftEye.y + (mouth?.y ?? leftEye.y + faceBox.h * 0.3)) / 2 * H;
-      const noseX = ((leftEye.x + rightEye.x) / 2) * W;
+      const noseX = (eyes[0].x + eyes[1].x) / 2;
       ctx.beginPath();
       ctx.moveTo(noseX, (leftEye.y * H) + eyeRadius);
       ctx.lineTo(noseX, noseY);
@@ -435,9 +479,9 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
       ctx.fill();
     }
 
-    // ── Mouth / lips ────────────────────────────────────────────────────
+    // ── Mouth / lips (mirrored) ───────────────────────────────────────────
     if (mouth) {
-      const mx = mouth.x * W, my = mouth.y * H, mw = mouth.w * W;
+      const mx = (1 - mouth.x) * W, my = mouth.y * H, mw = mouth.w * W;
       const lipColor = lipsMoving ? '#f87171' : '#818cf880';
       // Upper lip
       ctx.beginPath();
@@ -482,8 +526,8 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
       ctx.fillText(`MOV ${motionScore}/100`, W - 74, 15);
     }
 
-    // ── Gaze crosshair ────────────────────────────────────────────────────
-    const gx = lm.gazeX * W, gy = lm.gazeY * H;
+    // ── Gaze crosshair (mirrored) ─────────────────────────────────────────
+    const gx = (1 - lm.gazeX) * W, gy = lm.gazeY * H;
     ctx.beginPath();
     ctx.arc(gx, gy, 8, 0, Math.PI * 2);
     ctx.strokeStyle = isWarning ? '#fbbf24' : '#818cf8';
@@ -495,51 +539,95 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
     ctx.arc(gx, gy, 2.5, 0, Math.PI * 2);
     ctx.fillStyle = isWarning ? '#fbbf24' : '#818cf8';
     ctx.fill();
-  }, [showOverlays, landmarks]);
+  }, [showOverlays]);
 
   // ── Camera + Audio init ──────────────────────────────────────────────────
   useEffect(() => {
     let destroyed = false;
     async function initCamera() {
+      // 1. Check if initialStream is provided and active
+      if (initialStream && initialStream.active) {
+        const vTracks = initialStream.getVideoTracks();
+        if (vTracks.length > 0 && vTracks.some((t) => t.readyState === 'live')) {
+          streamRef.current = initialStream;
+          bindStreamToVideo(initialStream);
+          setIsRealWebcam(true);
+          setStreamError(null);
+          startAudioAnalysis(initialStream);
+          onUpdateProctorState((prev) => ({ ...prev, isCameraActive: true, isMicActive: true }));
+          addLog('success', 'Camera & Microphone feed connected from verification check.', 0.99);
+          return;
+        }
+      }
+
+      // 2. Otherwise request media stream directly
       try {
         if (navigator.mediaDevices?.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-            audio: true,
-          });
-          if (destroyed) { stream.getTracks().forEach(t => t.stop()); return; }
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => {});
+          let stream: MediaStream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+              audio: true,
+            });
+          } catch {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            } catch {
+              stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            }
           }
+
+          if (destroyed) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+
+          streamRef.current = stream;
+          bindStreamToVideo(stream);
           setIsRealWebcam(true);
           setStreamError(null);
           startAudioAnalysis(stream);
-          onUpdateProctorState(prev => ({ ...prev, isCameraActive: true, isMicActive: true }));
+          onUpdateProctorState((prev) => ({ ...prev, isCameraActive: true, isMicActive: true }));
           addLog('success', 'Camera & Microphone initialized. Real-time AI analysis active.', 0.99);
         } else {
           setIsRealWebcam(false);
           setStreamError('Media devices unavailable. Running simulation mode.');
         }
       } catch (err) {
-        console.log('[VideoProctor] Camera init failed:', err);
+        console.warn('[VideoProctor] Camera init failed:', err);
         setIsRealWebcam(false);
         setStreamError('Camera/mic access denied. Running AI Simulation Mode.');
-        onUpdateProctorState(prev => ({ ...prev, isCameraActive: false, isMicActive: false }));
+        onUpdateProctorState((prev) => ({ ...prev, isCameraActive: false, isMicActive: false }));
       }
     }
+
     initCamera();
+
     return () => {
       destroyed = true;
-      streamRef.current?.getTracks().forEach(t => t.stop());
+      if (streamRef.current && streamRef.current !== initialStream) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
       streamRef.current = null;
       audioCtxRef.current?.close().catch(() => {});
       audioCtxRef.current = null;
       if (faceMissingTimerRef.current) clearTimeout(faceMissingTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialStream]);
+
+  // Keep video element synchronized whenever minimized or webcam state changes
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (video && stream) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+      video.muted = true;
+      video.play().catch(() => {});
+    }
+  }, [isRealWebcam, isMinimized]);
 
   // ── Main 250ms analysis loop ─────────────────────────────────────────────
   useEffect(() => {
@@ -604,12 +692,12 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
 
           // Derive landmark positions for overlay
           const lm = deriveLandmarks(skinGrid);
-          setLandmarks(prev => ({
+          setLandmarks({
             ...lm,
             faceCount:  detectedFaceCount,
             lipsMoving: lipMoving,
             headDown,
-          }));
+          });
 
           // Draw overlay
           drawOverlay(
@@ -816,8 +904,6 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
     proctorState.motionScore >= MOTION_THRESHOLD_VIOLATION ? 'bg-rose-400' :
     proctorState.motionScore >= MOTION_THRESHOLD_WARNING   ? 'bg-amber-400' : 'bg-emerald-400';
 
-  const isGazeWarning = proctorState.gazeDirection !== 'center';
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs text-slate-100 flex flex-col font-sans relative">
       {/* Header */}
@@ -851,25 +937,31 @@ export const VideoProctor: React.FC<VideoProctorProps> = ({
           {/* Hidden analysis canvas — pixel work only */}
           <canvas ref={analysisCanvasRef} className="hidden" width={AW} height={AH} />
 
-          {isRealWebcam ? (
-            <>
-              {/* Visible video feed */}
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ transform: 'scaleX(-1)' }}
-              />
-              {/* Landmark overlay canvas */}
-              <canvas
-                ref={overlayCanvasRef}
-                className="absolute inset-0 w-full h-full pointer-events-none"
-                style={{ transform: 'scaleX(-1)' }}
-              />
-            </>
-          ) : (
+          {/* Visible video feed - permanently in DOM to guarantee stream binding & zero black frame state */}
+          <video
+            ref={setVideoRef}
+            autoPlay
+            playsInline
+            muted
+            onLoadedMetadata={(e) => {
+              e.currentTarget.play().catch(() => {});
+            }}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+              isRealWebcam ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            style={{ transform: 'scaleX(-1)' }}
+          />
+
+          {/* Landmark overlay canvas - normal coordinate system for unmirrored, readable text and aligned HUD */}
+          {isRealWebcam && (
+            <canvas
+              ref={overlayCanvasRef}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            />
+          )}
+
+          {/* Fallback AI Simulation Avatar when camera is offline */}
+          {!isRealWebcam && (
             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 relative overflow-hidden">
               <div className="relative flex flex-col items-center justify-center">
                 <div className="w-24 h-24 rounded-full bg-slate-800/80 border border-slate-700/80 flex items-center justify-center shadow-inner">
