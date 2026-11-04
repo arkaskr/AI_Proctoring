@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Camera,
@@ -17,11 +17,12 @@ import {
 } from 'lucide-react';
 
 interface StepPermissionsProps {
-  onNext: () => void;
+  onNext: (stream?: MediaStream | null) => void;
 }
 
 export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasCamera, setHasCamera] = useState<boolean>(false);
   const [hasMic, setHasMic] = useState<boolean>(false);
@@ -30,7 +31,18 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
   const [isRequesting, setIsRequesting] = useState<boolean>(false);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
 
-  const requestHardwarePermissions = async () => {
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      if (node.srcObject !== streamRef.current) {
+        node.srcObject = streamRef.current;
+      }
+      node.muted = true;
+      node.play().catch(() => {});
+    }
+  }, []);
+
+  const requestHardwarePermissions = useCallback(async () => {
     setIsRequesting(true);
     setErrorMsg(null);
 
@@ -44,6 +56,7 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
         audio: true,
       });
 
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       setHasCamera(true);
       setHasMic(true);
@@ -51,6 +64,7 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.muted = true;
         videoRef.current.play().catch(() => {});
       }
 
@@ -92,17 +106,94 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
     } finally {
       setIsRequesting(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    requestHardwarePermissions();
+    let ignore = false;
+
+    async function initHardware() {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('MediaDevices API not supported on this browser.');
+        }
+
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+          audio: true,
+        });
+
+        if (ignore) {
+          mediaStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = mediaStream;
+        setStream(mediaStream);
+        setHasCamera(true);
+        setHasMic(true);
+        setPermissionGranted(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.muted = true;
+          videoRef.current.play().catch(() => {});
+        }
+
+        // Audio volume monitoring
+        try {
+          const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+          const analyser = audioCtx.createAnalyser();
+          const source = audioCtx.createMediaStreamSource(mediaStream);
+          source.connect(analyser);
+          analyser.fftSize = 256;
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+          const checkAudio = () => {
+            if (!mediaStream.active || ignore) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
+            }
+            const avg = sum / dataArray.length;
+            setMicLevel(Math.min(100, Math.max(10, Math.round((avg / 128) * 100))));
+            requestAnimationFrame(checkAudio);
+          };
+          checkAudio();
+        } catch {
+          // Fallback simulated volume fluctuation
+          const interval = setInterval(() => {
+            if (!ignore) setMicLevel(Math.floor(20 + Math.random() * 35));
+          }, 300);
+          return () => clearInterval(interval);
+        }
+      } catch (err: unknown) {
+        console.warn('Camera/Mic permission restricted:', err);
+        if (!ignore) {
+          setHasCamera(true);
+          setHasMic(true);
+          setPermissionGranted(true);
+          setErrorMsg('Running in simulated hardware mode. Real hardware access can be granted in browser settings.');
+        }
+      }
+    }
+
+    initHardware();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
+      videoRef.current.muted = true;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stream]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,16 +214,19 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
         {/* Left: Video Preview */}
         <div className="md:col-span-7 flex flex-col gap-3">
           <div className="relative aspect-4/3 rounded-2xl bg-slate-900 overflow-hidden border-2 border-slate-200 shadow-md flex items-center justify-center">
-            {stream ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover -scale-x-100"
-              />
-            ) : (
-                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-900 text-white">
+            <video
+              ref={setVideoRef}
+              autoPlay
+              playsInline
+              muted
+              onLoadedMetadata={(e) => {
+                e.currentTarget.play().catch(() => {});
+              }}
+              className={`w-full h-full object-cover -scale-x-100 transition-opacity duration-300 ${stream ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            />
+
+            {!stream && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900 text-white">
                 <div className="w-24 h-24 rounded-full bg-indigo-500/20 border-2 border-indigo-400/50 flex items-center justify-center mb-4 animate-pulse">
                   <Camera className="w-10 h-10 text-indigo-400" />
                 </div>
@@ -240,7 +334,7 @@ export const StepPermissions: React.FC<StepPermissionsProps> = ({ onNext }) => {
 
             <button
               type="button"
-              onClick={onNext}
+              onClick={() => onNext(streamRef.current)}
               disabled={!permissionGranted}
               className={`w-full mt-2 py-3 px-5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer ${
                 permissionGranted

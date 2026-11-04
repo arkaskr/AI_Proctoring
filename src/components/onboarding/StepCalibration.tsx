@@ -18,9 +18,10 @@ import {
 interface StepCalibrationProps {
   onNext: () => void;
   onBack: () => void;
+  sharedStream?: MediaStream | null;
 }
 
-export const StepCalibration: React.FC<StepCalibrationProps> = ({ onNext, onBack }) => {
+export const StepCalibration: React.FC<StepCalibrationProps> = ({ onNext, onBack, sharedStream }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [gazeStep, setGazeStep] = useState<number>(0); // 0: not started, 1: left, 2: center, 3: right, 4: complete
   const [faceCentered, setFaceCentered] = useState<boolean>(true);
@@ -30,16 +31,31 @@ export const StepCalibration: React.FC<StepCalibrationProps> = ({ onNext, onBack
   const [calibrationDone, setCalibrationDone] = useState<boolean>(false);
 
   useEffect(() => {
-    let activeStream: MediaStream | null = null;
-    navigator.mediaDevices?.getUserMedia({ video: true })
-      .then((stream) => {
-        activeStream = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
-        }
-      })
-      .catch(() => {});
+    let localStream: MediaStream | null = null;
+    let destroyed = false;
+
+    if (sharedStream && sharedStream.active) {
+      if (videoRef.current) {
+        videoRef.current.srcObject = sharedStream;
+        videoRef.current.muted = true;
+        videoRef.current.play().catch(() => {});
+      }
+    } else {
+      navigator.mediaDevices?.getUserMedia({ video: true })
+        .then((stream) => {
+          if (destroyed) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          localStream = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.muted = true;
+            videoRef.current.play().catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
 
     // Automatically trigger gaze calibration sequence
     const t1 = setTimeout(() => setGazeStep(1), 1000);
@@ -52,15 +68,16 @@ export const StepCalibration: React.FC<StepCalibrationProps> = ({ onNext, onBack
     }, 5800);
 
     return () => {
+      destroyed = true;
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
-      if (activeStream) {
-        activeStream.getTracks().forEach((t) => t.stop());
+      if (localStream) {
+        localStream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, []);
+  }, [sharedStream]);
 
   return (
     <div className="flex flex-col gap-6">

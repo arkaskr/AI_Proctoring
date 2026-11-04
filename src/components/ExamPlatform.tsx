@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Header } from '@/components/Header';
 import { VideoProctor } from '@/components/VideoProctor';
@@ -31,9 +31,12 @@ export function ExamPlatform() {
   const [stage, setStage] = useState<'onboarding' | 'exam' | 'submitted'>('onboarding');
 
   // Unique session ID for this exam attempt — used to namespace IndexedDB records
-  const sessionIdRef = useRef<string>(
-    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`
+  const [sessionId, setSessionId] = useState<string>(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'session-init'
   );
+
+  // Active camera stream shared between onboarding verification and exam arena
+  const [activeMediaStream, setActiveMediaStream] = useState<MediaStream | null>(null);
 
   const [candidate] = useState<CandidateInfo>(mockCandidate);
   const [sections] = useState<Section[]>(mockSections);
@@ -78,7 +81,7 @@ export function ExamPlatform() {
   });
 
   // AI Proctoring Telemetry State
-  const [proctorState, setProctorState] = useState<ProctorState>({
+  const [proctorState, setProctorState] = useState<ProctorState>(() => ({
     isCameraActive: true,
     isMicActive: true,
     faceDetected: true,
@@ -98,7 +101,7 @@ export function ExamPlatform() {
     speechDetected: false,
     motionViolationCount: 0,
     noiseViolationCount: 0,
-    sessionId: sessionIdRef.current,
+    sessionId: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'session-init',
     logs: [
       {
         id: 'log-init-1',
@@ -115,7 +118,7 @@ export function ExamPlatform() {
         confidence: 0.98,
       },
     ],
-  });
+  }));
 
   // Countdown timer effect (only runs during 'exam' stage)
   useEffect(() => {
@@ -518,8 +521,9 @@ export function ExamPlatform() {
 
   const handleRestartExam = () => {
     // Generate fresh session ID for new attempt
-    sessionIdRef.current =
+    const newSessionId =
       typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`;
+    setSessionId(newSessionId);
     setStage('onboarding');
     setRemainingSeconds(5400);
     setActiveSectionId('sec-1');
@@ -549,7 +553,7 @@ export function ExamPlatform() {
       motionScore: 0,
       voiceActivityDetected: false,
       speechDetected: false,
-      sessionId: sessionIdRef.current,
+      sessionId: newSessionId,
       logs: [
         {
           id: `log-${Date.now()}`,
@@ -567,7 +571,10 @@ export function ExamPlatform() {
     return (
       <ExamOnboardingFlow
         candidate={candidate}
-        onStartExam={() => setStage('exam')}
+        onStartExam={(stream) => {
+          if (stream) setActiveMediaStream(stream);
+          setStage('exam');
+        }}
       />
     );
   }
@@ -641,12 +648,13 @@ export function ExamPlatform() {
           <VideoProctor
             proctorState={proctorState}
             onUpdateProctorState={setProctorState}
-            sessionId={sessionIdRef.current}
+            sessionId={sessionId}
+            initialStream={activeMediaStream}
             onTriggerViolation={(type, message) => {
               // Persist violation to IndexedDB
               saveViolation({
                 id: `viol-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                sessionId: sessionIdRef.current,
+                sessionId: sessionId,
                 timestamp: new Date().toISOString(),
                 type,
                 message,

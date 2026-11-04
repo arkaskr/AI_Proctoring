@@ -11,7 +11,7 @@ import { Shield, Check, Lock, ShieldCheck } from 'lucide-react';
 
 interface ExamOnboardingFlowProps {
   candidate: CandidateInfo;
-  onStartExam: () => void;
+  onStartExam: (stream?: MediaStream | null) => void;
 }
 
 type OnboardingStep = 'permissions' | 'system_scan' | 'calibration' | 'instructions';
@@ -21,6 +21,7 @@ export const ExamOnboardingFlow: React.FC<ExamOnboardingFlowProps> = ({
   onStartExam,
 }) => {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('permissions');
+  const [sharedStream, setSharedStream] = useState<MediaStream | null>(null);
 
   const steps: { id: OnboardingStep; title: string; subtitle: string }[] = [
     { id: 'permissions', title: '1. Hardware Access', subtitle: 'Camera & Mic' },
@@ -117,7 +118,12 @@ export const ExamOnboardingFlow: React.FC<ExamOnboardingFlowProps> = ({
               transition={{ duration: 0.2 }}
             >
               {currentStep === 'permissions' && (
-                <StepPermissions onNext={() => setCurrentStep('system_scan')} />
+                <StepPermissions
+                  onNext={(stream) => {
+                    if (stream) setSharedStream(stream);
+                    setCurrentStep('system_scan');
+                  }}
+                />
               )}
               {currentStep === 'system_scan' && (
                 <StepSystemScan
@@ -127,6 +133,7 @@ export const ExamOnboardingFlow: React.FC<ExamOnboardingFlowProps> = ({
               )}
               {currentStep === 'calibration' && (
                 <StepCalibration
+                  sharedStream={sharedStream}
                   onNext={() => setCurrentStep('instructions')}
                   onBack={() => setCurrentStep('system_scan')}
                 />
@@ -134,7 +141,7 @@ export const ExamOnboardingFlow: React.FC<ExamOnboardingFlowProps> = ({
               {currentStep === 'instructions' && (
                 <StepInstructions
                   candidate={candidate}
-                  onStartExam={onStartExam}
+                  onStartExam={() => onStartExam(sharedStream)}
                   onBack={() => setCurrentStep('calibration')}
                 />
               )}
